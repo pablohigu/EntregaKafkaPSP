@@ -2,7 +2,7 @@
 
 Este proyecto implementa un sistema de impresión empresarial robusto utilizando **Java** y **Apache Kafka**. Simula un entorno distribuido donde los documentos son recibidos, archivados, procesados (paginados) y enviados a colas de impresión específicas (Blanco/Negro o Color) para ser consumidos por múltiples impresoras en paralelo.
 
-## 📋 Descripción del Sistema
+## Descripción del Sistema
 
 El sistema cumple con los siguientes requerimientos de arquitectura:
 
@@ -16,14 +16,14 @@ El sistema cumple con los siguientes requerimientos de arquitectura:
     * 2 Impresoras Color (Consumiendo de 2 particiones).
 5.  **Configuración Externa:** Sin "números mágicos", todo configurable desde `app.conf`.
 
-## 🛠️ Tecnologías
+## Tecnologías
 
 * **Java 17**
 * **Apache Kafka** (Modo KRaft)
 * **Maven** (Gestión de dependencias)
 * **Jackson** (Procesamiento JSON)
 
-## ⚙️ Configuración (app.conf)
+## Configuración (app.conf)
 
 El comportamiento del sistema se controla desde `src/main/resources/app.conf`. Aquí puedes modificar:
 
@@ -32,7 +32,7 @@ El comportamiento del sistema se controla desde `src/main/resources/app.conf`. A
 * Tamaño de paginación (caracteres por página).
 * Tiempos de espera simulados (velocidad de impresión y envío).
 
-## 🚀 Guía de Instalación y Despliegue
+## Guía de Instalación y Despliegue
 
 ### 1. Prerrequisitos
 Tener instalado y configurado Apache Kafka en el sistema (ej. en `C:\kafka`).
@@ -73,11 +73,11 @@ El sistema consta de 3 módulos independientes que deben ejecutarse en paralelo 
     Empieza a generar y enviar documentos aleatorios continuamente.
     * Clase: `impresion.productor.Emisor`
 
-## 📂 Resultados
+##  Resultados
 
 El sistema generará automáticamente en la raíz del proyecto:
 * Una carpeta `/archivos_originales` con los JSON recibidos organizados por nombre del remitente.
 * Logs en consola detallando el flujo de impresión y paginación.
 
-## 👤 Autor
-Miguel Goyena - Desarrollo de Interfaces y Sistemas Distribuidos.
+## Autor
+Pablo Higuero- Desarrollo de Interfaces y Sistemas Distribuidos.
