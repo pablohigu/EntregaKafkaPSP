@@ -1,11 +1,10 @@
-package consumidor;
+package impresion.consumidor;
+
+import impresion.modelo.Documento;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import modelo.Documento;
-
 import java.io.File;
 import java.nio.file.*;
 import java.time.Duration;
@@ -13,42 +12,39 @@ import java.util.*;
 
 public class Procesador {
     public static void main(String[] args) {
+        // Silenciar logs
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
         
-        Procesador app = new Procesador();
-        app.iniciarSistema();
+        new Thread(() -> tareaArchivar()).start();
+        new Thread(() -> tareaTransformar()).start();
     }
 
-    public void iniciarSistema() {
-        new Thread(this::tareaArchivar).start();
-        new Thread(this::tareaTransformar).start();
-    }
-
-    private void tareaArchivar() {
+    static void tareaArchivar() {
         KafkaConsumer<String, String> consumer = crearConsumidor("grupo-archivador");
         consumer.subscribe(Collections.singletonList("cola-recepcion"));
         ObjectMapper mapper = new ObjectMapper();
 
-        System.out.println("💾 Archivador listo.");
+        System.out.println("💾 Archivador (RAW) iniciado.");
 
         while (true) {
             for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
                 try {
                     Documento doc = mapper.readValue(record.value(), Documento.class);
                     
+                    // REQUISITO: Guardar en carpeta por sender
                     String nombreCarpeta = "archivos_originales/" + doc.sender.replace(" ", "_");
-                    new File(nombreCarpeta).mkdirs();
+                    new File(nombreCarpeta).mkdirs(); // Crear carpeta si no existe
                     
                     String nombreFichero = nombreCarpeta + "/" + doc.titulo + ".json";
                     Files.write(Paths.get(nombreFichero), record.value().getBytes());
                     
-                    System.out.println("💾 [Archivado] Guardado original: " + doc.titulo);
+                    System.out.println("💾 [Archivado] Guardado en disco: " + nombreFichero);
                 } catch (Exception e) { e.printStackTrace(); }
             }
         }
     }
 
-    private void tareaTransformar() {
+    static void tareaTransformar() {
         KafkaConsumer<String, String> consumer = crearConsumidor("grupo-transformador");
         consumer.subscribe(Collections.singletonList("cola-recepcion"));
         
@@ -59,7 +55,7 @@ public class Procesador {
         KafkaProducer<String, String> producer = new KafkaProducer<>(props);
         ObjectMapper mapper = new ObjectMapper();
         
-        System.out.println("⚙️ Transformador listo.");
+        System.out.println("⚙️ Transformador (Paginador) iniciado.");
 
         while (true) {
             for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
@@ -67,36 +63,33 @@ public class Procesador {
                     Documento doc = mapper.readValue(record.value(), Documento.class);
                     String destino = doc.tipo.equals("Color") ? "cola-impresion-color" : "cola-impresion-bn";
 
-                    // --- LÓGICA DE DIVISIÓN POR PÁGINAS ---
-                    String texto = doc.documento;
-                    int longitud = texto.length();
-                    int maxChars = 400; // Según enunciado
-                    
-                    // Calculamos total páginas
-                    int totalPaginas = (int) Math.ceil((double) longitud / maxChars);
+                    // REQUISITO: Dividir máximo 400 caracteres
+                    String textoCompleto = doc.documento;
+                    int longitud = textoCompleto.length();
+                    int tamanoPagina = 400;
+                    int totalPaginas = (int) Math.ceil((double) longitud / tamanoPagina);
 
                     for (int i = 0; i < totalPaginas; i++) {
-                        int inicio = i * maxChars;
-                        int fin = Math.min(inicio + maxChars, longitud);
-                        String contenidoPagina = texto.substring(inicio, fin);
+                        int inicio = i * tamanoPagina;
+                        int fin = Math.min(inicio + tamanoPagina, longitud);
+                        String textoPagina = textoCompleto.substring(inicio, fin);
 
-                        // Crear JSON de la página suelta
                         ObjectNode jsonPagina = mapper.createObjectNode();
                         jsonPagina.put("titulo", doc.titulo);
-                        jsonPagina.put("pagina_actual", i + 1);
-                        jsonPagina.put("total_paginas", totalPaginas);
-                        jsonPagina.put("contenido", contenidoPagina);
+                        jsonPagina.put("pagina", i + 1);
+                        jsonPagina.put("total", totalPaginas);
+                        jsonPagina.put("contenido", textoPagina);
                         
                         producer.send(new ProducerRecord<>(destino, jsonPagina.toString()));
                     }
-                    System.out.println("🔀 [Router] " + doc.titulo + " dividido en " + totalPaginas + " páginas -> Enviado a " + destino);
+                    System.out.println("[Router] " + doc.titulo + " dividido en " + totalPaginas + " págs -> " + destino);
 
                 } catch (Exception e) { e.printStackTrace(); }
             }
         }
     }
 
-    private KafkaConsumer<String, String> crearConsumidor(String grupo) {
+    static KafkaConsumer<String, String> crearConsumidor(String grupo) {
         Properties props = new Properties();
         props.put("bootstrap.servers", "localhost:9092");
         props.put("group.id", grupo);

@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.util.*;
 
 public class Procesador {
+
+    // 1. El Main solo arranca la aplicación (limpio)
     public static void main(String[] args) {
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
         
@@ -19,6 +21,7 @@ public class Procesador {
         app.iniciarSistema();
     }
 
+    // 2. Método de instancia que lanza los hilos
     public void iniciarSistema() {
         new Thread(this::tareaArchivar).start();
         new Thread(this::tareaTransformar).start();

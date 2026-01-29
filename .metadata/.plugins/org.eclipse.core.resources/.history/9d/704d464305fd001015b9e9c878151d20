@@ -1,9 +1,8 @@
-package productor;
+package impresion.productor;
+
+import impresion.modelo.Documento;
 import org.apache.kafka.clients.producer.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import modelo.Documento;
-
 import java.util.Properties;
 import java.util.Random;
 

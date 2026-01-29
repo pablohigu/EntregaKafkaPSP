@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.util.*;
 
 public class Procesador {
+
+    // 1. El Main solo arranca la aplicación (limpio)
     public static void main(String[] args) {
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
         

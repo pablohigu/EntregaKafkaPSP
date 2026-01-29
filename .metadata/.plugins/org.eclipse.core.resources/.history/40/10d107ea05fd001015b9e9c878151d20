@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.util.*;
 
 public class Procesador {
+
+    // 1. El Main solo arranca la aplicación (limpio)
     public static void main(String[] args) {
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
         
@@ -19,11 +21,14 @@ public class Procesador {
         app.iniciarSistema();
     }
 
+    // 2. Método de instancia que lanza los hilos
     public void iniciarSistema() {
+        // Usamos referencias a métodos de instancia (this::metodo)
         new Thread(this::tareaArchivar).start();
         new Thread(this::tareaTransformar).start();
     }
 
+    // 3. Lógica de Archivado (Sin static)
     private void tareaArchivar() {
         KafkaConsumer<String, String> consumer = crearConsumidor("grupo-archivador");
         consumer.subscribe(Collections.singletonList("cola-recepcion"));
@@ -48,6 +53,7 @@ public class Procesador {
         }
     }
 
+    // 4. Lógica de Transformación (Sin static)
     private void tareaTransformar() {
         KafkaConsumer<String, String> consumer = crearConsumidor("grupo-transformador");
         consumer.subscribe(Collections.singletonList("cola-recepcion"));
