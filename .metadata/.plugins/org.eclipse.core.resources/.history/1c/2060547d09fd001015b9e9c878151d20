@@ -1,0 +1,53 @@
+package productor;
+import org.apache.kafka.clients.producer.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import modelo.Documento;
+
+import java.util.Properties;
+import java.util.Random;
+
+public class Emisor {
+    
+    // Método de instancia (ya no es static)
+    public void iniciar() {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
+        props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
+            ObjectMapper mapper = new ObjectMapper();
+            Random random = new Random();
+            int contador = 1;
+
+            System.out.println("--- 🏢 Oficina abierta: Enviando INFORMES LARGOS ---");
+
+            while (true) {
+                boolean esColor = random.nextBoolean();
+                String tipo = esColor ? "Color" : "B/N";
+                String titulo = esColor ? "Catalogo_Grafico_" + contador : "Informe_Anual_" + contador;
+                
+                // GENERAMOS TEXTO LARGO (Más de 400 caracteres para forzar paginación)
+                // Repetimos una frase 30 veces. 30 x ~40 chars = ~1200 caracteres (3 páginas)
+                String textoBase = "Este es un párrafo de contenido simulado para llenar espacio. ";
+                String textoLargo = textoBase.repeat(30); 
+
+                Documento doc = new Documento(titulo, textoLargo, tipo, "Miguel Goyena");
+                
+                producer.send(new ProducerRecord<>("cola-recepcion", doc.sender, mapper.writeValueAsString(doc)));
+                
+                System.out.println("📤 Enviado: " + doc.titulo + " [" + tipo + "] - Longitud: " + textoLargo.length() + " chars");
+                
+                contador++;
+                Thread.sleep(5000); // 5 segundos de espera
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public static void main(String[] args) {
+        // Creamos el objeto y lanzamos el método
+        Emisor app = new Emisor();
+        app.iniciar();
+    }
+}

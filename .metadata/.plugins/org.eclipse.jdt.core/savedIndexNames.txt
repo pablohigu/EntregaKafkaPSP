@@ -10,4 +10,3 @@ INDEX VERSION 1.134+C:\Users\pablo\Desktop\25-26\PSP\EntregaKafka\.metadata\.plu
 812131280.index
 2468135944.index
 1986039252.index
-4129242911.index

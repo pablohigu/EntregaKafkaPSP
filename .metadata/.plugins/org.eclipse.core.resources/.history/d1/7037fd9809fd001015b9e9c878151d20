@@ -3,10 +3,6 @@ import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import modelo.Config;
-import modelo.Documento;
-
 import java.io.File;
 import java.nio.file.*;
 import java.time.Duration;

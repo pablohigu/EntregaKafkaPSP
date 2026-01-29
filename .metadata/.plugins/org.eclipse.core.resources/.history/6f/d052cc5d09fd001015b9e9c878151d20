@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class Documento {
     public String titulo;
     public String documento;
-    public String tipo;
+    public String tipo;   // "B/N" o "Color"
     public String sender;
 
     public Documento() {}

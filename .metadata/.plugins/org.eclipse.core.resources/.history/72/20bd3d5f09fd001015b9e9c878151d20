@@ -1,4 +1,5 @@
-package modelo;
+package impresion.modelo;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)

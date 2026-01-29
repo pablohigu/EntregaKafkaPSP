@@ -1,10 +1,6 @@
-package productor;
+
 import org.apache.kafka.clients.producer.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import modelo.Config;
-import modelo.Documento;
-
 import java.util.Properties;
 import java.util.Random;
 
