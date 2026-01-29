@@ -4,7 +4,9 @@ import java.time.Duration;
 import java.util.*;
 
 public class Impresoras {
+	
     public static void main(String[] args) {
+    	System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
         // 3 Impresoras B/N
         for (int i = 1; i <= 3; i++) new Thread(new TareaImpresora("BN", i)).start();
         // 2 Impresoras Color
@@ -27,11 +29,11 @@ public class Impresoras {
             String topic = tipo.equals("Color") ? "cola-impresion-color" : "cola-impresion-bn";
             consumer.subscribe(Collections.singletonList(topic));
 
-            System.out.println("🖨️ Impresora " + tipo + "-" + id + " lista.");
+            System.out.println("Impresora " + tipo + "-" + id + " lista.");
 
             while (true) {
                 for (ConsumerRecord<String, String> r : consumer.poll(Duration.ofMillis(500))) {
-                    System.out.println("🖨️ [" + tipo + "-" + id + "] Imprimiendo: " + r.value());
+                    System.out.println("[" + tipo + "-" + id + "] Imprimiendo: " + r.value());
                     try { Thread.sleep(1500); } catch (Exception e) {}
                 }
             }

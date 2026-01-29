@@ -1,0 +1,47 @@
+package productor;
+
+
+import org.apache.kafka.clients.producer.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Properties;
+import java.util.Random;
+
+public class Emisor {
+    public static void main(String[] args) {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
+        props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
+            ObjectMapper mapper = new ObjectMapper();
+            Random random = new Random();
+            int contador = 1;
+
+            System.out.println("--- 🏢 Oficina abierta: Enviando trabajos continuamente ---");
+
+            // Bucle infinito: Para pararlo tendrás que pulsar el botón ROJO en Eclipse
+            while (true) {
+                
+                // 1. Decidir aleatoriamente si es Color o B/N
+                boolean esColor = random.nextBoolean();
+                String tipo = esColor ? "Color" : "B/N";
+                String titulo = esColor ? "Foto_Vacaciones_" + contador : "Factura_" + contador;
+                
+                // 2. Crear el documento
+                Documento doc = new Documento(titulo, "Contenido del documento " + contador, tipo, "Miguel Goyena");
+                
+                // 3. Enviar a Kafka
+                producer.send(new ProducerRecord<>("cola-recepcion", doc.sender, mapper.writeValueAsString(doc)));
+                
+                System.out.println("📤 Enviado: " + doc.titulo + " [" + tipo + "]");
+                
+                contador++;
+
+                // 4. Esperar 3 segundos antes del siguiente envío
+                Thread.sleep(3000); 
+            }
+
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+}

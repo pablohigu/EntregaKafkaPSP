@@ -1,0 +1,76 @@
+package consumidor;
+
+
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.producer.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import modelo.Documento;
+
+import java.time.Duration;
+import java.util.*;
+
+public class Procesador {
+    public static void main(String[] args) {
+        // Hilo 1: Archivador (Guarda original)
+        new Thread(() -> tareaArchivar()).start();
+
+        // Hilo 2: Transformador (Divide y reenvía)
+        new Thread(() -> tareaTransformar()).start();
+    }
+
+    static void tareaArchivar() {
+        KafkaConsumer<String, String> consumer = crearConsumidor("grupo-archivador");
+        consumer.subscribe(Collections.singletonList("cola-recepcion"));
+        System.out.println("💾 Archivador iniciado.");
+
+        while (true) {
+            for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
+                System.out.println("💾 [Archivado] " + record.key() + ": " + record.value().substring(0, 20) + "...");
+                // Aquí iría el código de guardar en disco
+            }
+        }
+    }
+
+    static void tareaTransformar() {
+        KafkaConsumer<String, String> consumer = crearConsumidor("grupo-transformador");
+        consumer.subscribe(Collections.singletonList("cola-recepcion"));
+        
+        // Productor para reenviar a las colas finales
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
+        props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        KafkaProducer<String, String> producer = new KafkaProducer<>(props);
+        ObjectMapper mapper = new ObjectMapper();
+        
+        System.out.println("⚙️ Transformador iniciado.");
+
+        while (true) {
+            for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
+                try {
+                    Documento doc = mapper.readValue(record.value(), Documento.class);
+                    String destino = doc.tipo.equals("Color") ? "cola-impresion-color" : "cola-impresion-bn";
+
+                    // Simulamos división en páginas
+                    ObjectNode jsonPagina = mapper.createObjectNode();
+                    jsonPagina.put("titulo", doc.titulo);
+                    jsonPagina.put("contenido", "Pagina 1 procesada");
+                    
+                    producer.send(new ProducerRecord<>(destino, jsonPagina.toString()));
+                    System.out.println("🔀 [Router] " + doc.titulo + " -> Enviado a " + destino);
+                } catch (Exception e) { e.printStackTrace(); }
+            }
+        }
+    }
+
+    static KafkaConsumer<String, String> crearConsumidor(String grupo) {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
+        props.put("group.id", grupo);
+        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        return new KafkaConsumer<>(props);
+    }
+}

@@ -13,26 +13,23 @@ import java.util.*;
 
 public class Procesador {
     public static void main(String[] args) {
+    	System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
         // Hilo 1: Archivador (Guarda original)
         new Thread(() -> tareaArchivar()).start();
-
-        // Hilo 2: Transformador (Divide y reenvía)
         new Thread(() -> tareaTransformar()).start();
     }
-
     static void tareaArchivar() {
         KafkaConsumer<String, String> consumer = crearConsumidor("grupo-archivador");
         consumer.subscribe(Collections.singletonList("cola-recepcion"));
-        System.out.println("💾 Archivador iniciado.");
-
+        System.out.println("Archivador iniciado.");
         while (true) {
             for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
-                System.out.println("💾 [Archivado] " + record.key() + ": " + record.value().substring(0, 20) + "...");
+                System.out.println("[Archivado] " + record.key() + ": " + record.value().substring(0, 20) + "...");
                 // Aquí iría el código de guardar en disco
             }
         }
     }
-
+    
     static void tareaTransformar() {
         KafkaConsumer<String, String> consumer = crearConsumidor("grupo-transformador");
         consumer.subscribe(Collections.singletonList("cola-recepcion"));
@@ -45,7 +42,7 @@ public class Procesador {
         KafkaProducer<String, String> producer = new KafkaProducer<>(props);
         ObjectMapper mapper = new ObjectMapper();
         
-        System.out.println("⚙️ Transformador iniciado.");
+        System.out.println("Transformador iniciado.");
 
         while (true) {
             for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
@@ -59,7 +56,7 @@ public class Procesador {
                     jsonPagina.put("contenido", "Pagina 1 procesada");
                     
                     producer.send(new ProducerRecord<>(destino, jsonPagina.toString()));
-                    System.out.println("🔀 [Router] " + doc.titulo + " -> Enviado a " + destino);
+                    System.out.println("[Router] " + doc.titulo + " -> Enviado a " + destino);
                 } catch (Exception e) { e.printStackTrace(); }
             }
         }

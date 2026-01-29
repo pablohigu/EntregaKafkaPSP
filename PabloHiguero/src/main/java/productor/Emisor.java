@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import modelo.Documento;
 
 import java.util.Properties;
+import java.util.Random;
 
 public class Emisor {
     public static void main(String[] args) {
@@ -17,17 +18,33 @@ public class Emisor {
 
         try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
             ObjectMapper mapper = new ObjectMapper();
-            System.out.println("--- Enviando trabajos ---");
+            Random random = new Random();
+            int contador = 1;
 
-            // Documento 1: Color
-            Documento doc1 = new Documento("Grafica Ventas", "Datos visuales complejos...", "Color", "Miguel Goyena");
-            producer.send(new ProducerRecord<>("cola-recepcion", doc1.sender, mapper.writeValueAsString(doc1)));
+            System.out.println("--- 🏢 Oficina abierta: Enviando trabajos continuamente ---");
 
-            // Documento 2: B/N
-            Documento doc2 = new Documento("Contrato", "Texto legal muy largo...", "B/N", "Miguel Goyena");
-            producer.send(new ProducerRecord<>("cola-recepcion", doc2.sender, mapper.writeValueAsString(doc2)));
+            // Bucle infinito: Para pararlo tendrás que pulsar el botón ROJO en Eclipse
+            while (true) {
+                
+                // 1. Decidir aleatoriamente si es Color o B/N
+                boolean esColor = random.nextBoolean();
+                String tipo = esColor ? "Color" : "B/N";
+                String titulo = esColor ? "Foto_Vacaciones_" + contador : "Factura_" + contador;
+                
+                // 2. Crear el documento
+                Documento doc = new Documento(titulo, "Contenido del documento " + contador, tipo, "Miguel Goyena");
+                
+                // 3. Enviar a Kafka
+                producer.send(new ProducerRecord<>("cola-recepcion", doc.sender, mapper.writeValueAsString(doc)));
+                
+                System.out.println("📤 Enviado: " + doc.titulo + " [" + tipo + "]");
+                
+                contador++;
 
-            System.out.println("✅ Documentos enviados a 'cola-recepcion'.");
+                // 4. Esperar 3 segundos antes del siguiente envío
+                Thread.sleep(3000); 
+            }
+
         } catch (Exception e) { e.printStackTrace(); }
     }
 }
