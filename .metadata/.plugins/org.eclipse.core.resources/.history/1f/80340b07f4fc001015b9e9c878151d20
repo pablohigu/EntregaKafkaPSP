@@ -1,0 +1,30 @@
+package impresion.productor;
+
+import impresion.modelo.Documento;
+import org.apache.kafka.clients.producer.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Properties;
+
+public class Emisor {
+    public static void main(String[] args) {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
+        props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
+            ObjectMapper mapper = new ObjectMapper();
+            System.out.println("--- Enviando trabajos ---");
+
+            // Documento 1: Color
+            Documento doc1 = new Documento("Grafica Ventas", "Datos visuales complejos...", "Color", "Miguel Goyena");
+            producer.send(new ProducerRecord<>("cola-recepcion", doc1.sender, mapper.writeValueAsString(doc1)));
+
+            // Documento 2: B/N
+            Documento doc2 = new Documento("Contrato", "Texto legal muy largo...", "B/N", "Miguel Goyena");
+            producer.send(new ProducerRecord<>("cola-recepcion", doc2.sender, mapper.writeValueAsString(doc2)));
+
+            System.out.println("✅ Documentos enviados a 'cola-recepcion'.");
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+}
