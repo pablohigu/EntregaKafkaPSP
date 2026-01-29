@@ -1,0 +1,20 @@
+package modelo;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class Documento {
+    public String titulo;
+    public String documento;
+    public String tipo;   // "B/N" o "Color"
+    public String sender;
+
+    public Documento() {}
+
+    public Documento(String titulo, String documento, String tipo, String sender) {
+        this.titulo = titulo;
+        this.documento = documento;
+        this.tipo = tipo;
+        this.sender = sender;
+    }
+}

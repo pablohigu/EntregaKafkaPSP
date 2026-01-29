@@ -1,0 +1,77 @@
+package kafkan.consumer;
+
+import org.apache.kafka.clients.consumer.*;
+import java.nio.file.*;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class SistemaImpresion {
+
+    public static void main(String[] args) {
+        // Pool de hilos para simular las 5 impresoras funcionando a la vez
+        ExecutorService executor = Executors.newFixedThreadPool(5);
+
+        System.out.println("--- Iniciando Sistema de Impresión ---");
+        
+        // Lanzamos 3 Impresoras B/N (Conectadas a docs.print.bn)
+        for (int i = 1; i <= 3; i++) {
+            executor.submit(new ImpresoraTask("BN", i));
+        }
+
+        // Lanzamos 2 Impresoras Color (Conectadas a docs.print.color)
+        for (int i = 1; i <= 2; i++) {
+            executor.submit(new ImpresoraTask("Color", i));
+        }
+    }
+
+    // Clase interna que define el comportamiento de CADA impresora
+    static class ImpresoraTask implements Runnable {
+        private String tipo;
+        private int id;
+
+        public ImpresoraTask(String tipo, int id) {
+            this.tipo = tipo;
+            this.id = id;
+        }
+
+        @Override
+        public void run() {
+            // Seleccionar topic según el tipo de impresora
+            String topic = tipo.equals("Color") ? "docs.print.color" : "docs.print.bn";
+            
+            Properties props = new Properties();
+            props.put("bootstrap.servers", "localhost:9092");
+            // IMPORTANTE: Todos los hilos del mismo tipo comparten el group.id
+            // Esto permite que Kafka reparta las particiones entre las impresoras automáticamente.
+            props.put("group.id", "grupo-impresoras-" + tipo); 
+            props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+            props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+
+            try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
+                consumer.subscribe(Collections.singletonList(topic));
+                System.out.println("🖨️ Impresora " + tipo + "-" + id + " online y esperando...");
+
+                while (true) {
+                    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
+                    
+                    for (ConsumerRecord<String, String> record : records) {
+                        // Simular Impresión guardando archivo final
+                        String dir = "impresiones_finales/" + tipo + "/impresora_" + id;
+                        Files.createDirectories(Paths.get(dir));
+                        
+                        // Guardamos la "página"
+                        String file = dir + "/Job_" + System.nanoTime() + ".json";
+                        Files.write(Paths.get(file), record.value().getBytes());
+                        
+                        System.out.println("🖨️ [" + tipo + "-" + id + "] Imprimiendo página del doc: " + record.key());
+                        
+                        // Simulamos que la impresora tarda un poco en imprimir (1 segundo)
+                        Thread.sleep(1000); 
+                    }
+                }
+            } catch (Exception e) { e.printStackTrace(); }
+        }
+    }
+}

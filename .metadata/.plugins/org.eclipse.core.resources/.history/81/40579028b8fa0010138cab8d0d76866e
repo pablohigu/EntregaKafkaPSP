@@ -1,0 +1,40 @@
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import models.DocumentoInput;
+
+import org.apache.kafka.clients.producer.*;
+import java.util.Properties;
+
+public class ProductorDocumentos {
+    public static void main(String[] args) {
+        // Configuración del Productor
+        Properties props = new Properties();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        try (Producer<String, String> producer = new KafkaProducer<>(props)) {
+            System.out.println("--- Enviando documentos de prueba ---");
+
+            // Simulamos el envío de 5 documentos
+            for (int i = 1; i <= 5; i++) {
+                String tipo = (i % 2 == 0) ? "B/N" : "Color"; // Alternamos tipos
+             
+                String texto = "Doc-" + i + ". Contenido de prueba. ".repeat(30);
+                
+                DocumentoInput doc = new DocumentoInput("Informe_" + i, texto, tipo, "Miguel Goyena");
+                
+               
+                String json = mapper.writeValueAsString(doc);
+
+                producer.send(new ProducerRecord<>("docs.entry", doc.getSender(), json));
+                System.out.println("✅ Enviado: " + doc.getTitulo() + " [" + tipo + "]");
+                
+                Thread.sleep(500); 
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+}

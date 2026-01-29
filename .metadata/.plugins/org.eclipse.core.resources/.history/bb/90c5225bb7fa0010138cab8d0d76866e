@@ -1,0 +1,5 @@
+package Kafkan.PabloHiguero.models;
+
+public class DocumentoInput {
+
+}

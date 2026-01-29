@@ -1,0 +1,68 @@
+package kafkan.consumer;
+
+import kafkan.model.DocumentoInput;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.producer.*;
+import java.time.Duration;
+import java.util.*;
+
+public class Transformador {
+    public static void main(String[] args) {
+        // 1. Configurar Consumidor (Lee de docs.entry)
+        Properties consProps = new Properties();
+        consProps.put("bootstrap.servers", "localhost:9092");
+        consProps.put("group.id", "grupo-transformador"); // GRUPO DISTINTO al archivador
+        consProps.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        consProps.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+
+        // 2. Configurar Productor (Escribe en docs.print.*)
+        Properties prodProps = new Properties();
+        prodProps.put("bootstrap.servers", "localhost:9092");
+        prodProps.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        prodProps.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consProps);
+        KafkaProducer<String, String> producer = new KafkaProducer<>(prodProps);
+        
+        consumer.subscribe(Collections.singletonList("docs.entry"));
+        ObjectMapper mapper = new ObjectMapper();
+
+        System.out.println("--- Transformador y Router Iniciado ---");
+
+        try {
+            while (true) {
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+                
+                for (ConsumerRecord<String, String> record : records) {
+                    DocumentoInput doc = mapper.readValue(record.value(), DocumentoInput.class);
+                    
+                    // Lógica de Enrutamiento
+                    String topicDestino = "Color".equalsIgnoreCase(doc.getTipo()) ? "docs.print.color" : "docs.print.bn";
+                    
+                    // Lógica de División (Split) - 400 caracteres por página
+                    String texto = doc.getDocumento();
+                    int longitud = texto.length();
+                    int tamanoPagina = 400;
+                    int totalPags = (int) Math.ceil((double) longitud / tamanoPagina);
+
+                    for (int i = 0; i < totalPags; i++) {
+                        int start = i * tamanoPagina;
+                        int end = Math.min(start + tamanoPagina, longitud);
+                        String contenidoPagina = texto.substring(start, end);
+                        ObjectNode jsonPagina = mapper.createObjectNode();
+                        jsonPagina.put("titulo", doc.getTitulo());
+                        jsonPagina.put("pagina", i + 1);
+                        jsonPagina.put("total_paginas", totalPags);
+                        jsonPagina.put("contenido", contenidoPagina);
+
+                       
+                        producer.send(new ProducerRecord<>(topicDestino, doc.getTitulo(), jsonPagina.toString()));
+                    }
+                    System.out.println("Procesado: " + doc.getTitulo() + " -> " + topicDestino + " (" + totalPags + " pags)");
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+}

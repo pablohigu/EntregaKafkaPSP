@@ -1,0 +1,59 @@
+package Kafkan.PabloHiguero.models;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true) // Evita errores si llegan campos extra en el futuro
+public class DocumentoInput {
+    
+    private String titulo;
+    private String documento; 
+    private String tipo;    
+    private String sender;    
+
+    public DocumentoInput() {
+    }
+
+    public DocumentoInput(String titulo, String documento, String tipo, String sender) {
+        this.titulo = titulo;
+        this.documento = documento;
+        this.tipo = tipo;
+        this.sender = sender;
+    }
+
+    public String getTitulo() {
+        return titulo;
+    }
+
+    public void setTitulo(String titulo) {
+        this.titulo = titulo;
+    }
+
+    public String getDocumento() {
+        return documento;
+    }
+
+    public void setDocumento(String documento) {
+        this.documento = documento;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
+    }
+
+    public String getSender() {
+        return sender;
+    }
+
+    public void setSender(String sender) {
+        this.sender = sender;
+    }
+
+    @Override
+    public String toString() {
+        return "Doc{" + "titulo='" + titulo + '\'' + ", tipo='" + tipo + '\'' + '}';
+    }
+}

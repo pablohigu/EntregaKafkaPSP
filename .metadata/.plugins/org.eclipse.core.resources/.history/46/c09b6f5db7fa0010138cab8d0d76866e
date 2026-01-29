@@ -1,0 +1,67 @@
+package Kafkan.PabloHiguero.models;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+/**
+ * Clase POJO (Plain Old Java Object) que representa el JSON 
+ * enviado por los empleados.
+ * Estructura: { "titulo": "...", "documento": "...", "tipo": "...", "sender": "..."}
+ */
+@JsonIgnoreProperties(ignoreUnknown = true) // Evita errores si llegan campos extra en el futuro
+public class DocumentoInput {
+    
+    private String titulo;
+    private String documento; // El texto largo a imprimir
+    private String tipo;      // "B/N" o "Color"
+    private String sender;    // Nombre del empleado (Miguel Goyena)
+
+    // 1. Constructor vacío (OBLIGATORIO para que Jackson pueda leer el JSON)
+    public DocumentoInput() {
+    }
+
+    // 2. Constructor con argumentos (Para facilitar su creación en el Productor)
+    public DocumentoInput(String titulo, String documento, String tipo, String sender) {
+        this.titulo = titulo;
+        this.documento = documento;
+        this.tipo = tipo;
+        this.sender = sender;
+    }
+
+    // 3. Getters y Setters (OBLIGATORIOS para acceder a los datos)
+    public String getTitulo() {
+        return titulo;
+    }
+
+    public void setTitulo(String titulo) {
+        this.titulo = titulo;
+    }
+
+    public String getDocumento() {
+        return documento;
+    }
+
+    public void setDocumento(String documento) {
+        this.documento = documento;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
+    }
+
+    public String getSender() {
+        return sender;
+    }
+
+    public void setSender(String sender) {
+        this.sender = sender;
+    }
+
+    @Override
+    public String toString() {
+        return "Doc{" + "titulo='" + titulo + '\'' + ", tipo='" + tipo + '\'' + '}';
+    }
+}
