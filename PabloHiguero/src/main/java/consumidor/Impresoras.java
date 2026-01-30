@@ -33,7 +33,6 @@ public class Impresoras {
 
             KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
             consumer.subscribe(Collections.singletonList(topic));
-
             System.out.println("[INFO] Impresora " + tipo + "-" + id + " online.");
 
             while (true) {

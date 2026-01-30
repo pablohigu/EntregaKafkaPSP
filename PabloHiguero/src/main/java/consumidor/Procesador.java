@@ -24,14 +24,11 @@ public class Procesador {
         new Thread(this::tareaArchivar).start();
         new Thread(this::tareaTransformar).start();
     }
-
     private void tareaArchivar() {
         KafkaConsumer<String, String> consumer = crearConsumidor(Config.get("group.archivador"));
         consumer.subscribe(Collections.singletonList(Config.get("topic.recepcion")));
         ObjectMapper mapper = new ObjectMapper();
-
         System.out.println("[INFO] Modulo Archivador iniciado.");
-
         while (true) {
             for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
                 try {
