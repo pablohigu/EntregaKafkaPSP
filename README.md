@@ -1,83 +1,156 @@
-# Sistema de Gestión de Colas de Impresión Distribuidas (Kafka)
 
-Este proyecto implementa un sistema de impresión empresarial robusto utilizando **Java** y **Apache Kafka**. Simula un entorno distribuido donde los documentos son recibidos, archivados, procesados (paginados) y enviados a colas de impresión específicas (Blanco/Negro o Color) para ser consumidos por múltiples impresoras en paralelo.
 
-## Descripción del Sistema
+# Sistema de Gestión de Colas de Impresión (Kafka + Java)
 
-El sistema cumple con los siguientes requerimientos de arquitectura:
+Este proyecto implementa un sistema de mensajería asíncrono para gestionar una cola de impresión compleja utilizando **Apache Kafka** y **Java**.
 
-1.  **Entrada de Datos:** Recepción de documentos JSON con metadatos (Título, Contenido, Tipo, Sender).
-2.  **Paralelismo:** Un procesador central realiza dos tareas simultáneas mediante hilos:
-    * **Archivado:** Guarda una copia inmutable del documento original (RAW) en disco.
-    * **Transformación:** Divide el texto largo en páginas (configurado a 400 caracteres por defecto) y enruta el trabajo.
-3.  **Enrutamiento Inteligente:** Distribuye las páginas a topics diferenciados (`cola-impresion-bn` o `cola-impresion-color`).
-4.  **Escalabilidad:** Simula hardware físico con **consumer groups**:
-    * 3 Impresoras B/N (Consumiendo de 3 particiones).
-    * 2 Impresoras Color (Consumiendo de 2 particiones).
-5.  **Configuración Externa:** Sin "números mágicos", todo configurable desde `app.conf`.
+El sistema cumple con los requerimientos de la empresa:
+* **Recepción** de documentos JSON.
+* **Procesamiento paralelo:** Archivado (guardar original) y Transformación (paginación).
+* **Enrutamiento inteligente** a impresoras de B/N y Color.
 
-## Tecnologías
+---
 
-* **Java 17**
-* **Apache Kafka** (Modo KRaft)
-* **Maven** (Gestión de dependencias)
-* **Jackson** (Procesamiento JSON)
+## 1. Arquitectura de Topics y Diseño
 
-## Configuración (app.conf)
+El sistema utiliza el patrón de mensajería **Fan-Out** (Difusión) para garantizar que los procesos de guardado y transformación ocurran simultáneamente sin bloquearse.
 
-El comportamiento del sistema se controla desde `src/main/resources/app.conf`. Aquí puedes modificar:
+### Diagrama de Flujo
 
-* Dirección del servidor Kafka.
-* Nombres de los topics y grupos de consumo.
-* Tamaño de paginación (caracteres por página).
-* Tiempos de espera simulados (velocidad de impresión y envío).
+```text
+[Productor: Empleados]
+       |
+       v
+( TOPIC: cola-recepcion ) --------------------------------+
+       |                                                  |
+       v                                                  v
+[Consumidor A: Archivador]                    [Consumidor B: Transformador]
+       |                                     (Divide y decide B/N o Color)
+       v                                                  |
+[Disco: Archivos Originales]             +----------------+----------------+
+                                         |                                 |
+                                         v                                 v
+                             ( TOPIC: cola-impresion-bn )      ( TOPIC: cola-impresion-color )
+                                         |                                 |
+                                         v                                 v
+                                 [Impresoras B/N x3]               [Impresoras Color x2]
 
-## Guía de Instalación y Despliegue
+```
 
-### 1. Prerrequisitos
-Tener instalado y configurado Apache Kafka en el sistema (ej. en `C:\kafka`).
+### Definición de Topics (Kafka)
 
-### 2. Arrancar Infraestructura Kafka
-1.  Iniciar el servidor Kafka:
-    ```powershell
-    .\kafka-server-start.bat ..\..\config\server.properties
-    ```
+| Topic | Propósito | Formato del Mensaje |
+| --- | --- | --- |
+| **`cola-recepcion`** | Entrada principal. Recibe los trabajos de los empleados. | JSON Original (Título, Documento completo, Sender, Tipo) |
+| **`cola-impresion-bn`** | Cola de salida para documentos procesados en Blanco y Negro. | JSON Paginado (400 chars máx) |
+| **`cola-impresion-color`** | Cola de salida para documentos procesados en Color. | JSON Paginado (400 chars máx) |
 
-2.  Crear los Topics necesarios (con particiones para el paralelismo):
-    ```powershell
-    # Cola de entrada única
-    .\kafka-topics.bat --create --topic cola-recepcion --bootstrap-server localhost:9092
+### Consumer Groups (Paralelismo)
 
-    # Cola B/N (3 particiones para 3 impresoras)
-    .\kafka-topics.bat --create --topic cola-impresion-bn --bootstrap-server localhost:9092 --partitions 3
+Para cumplir el requisito de eficiencia máxima, se configuran grupos de consumo específicos en `app.properties`:
 
-    # Cola Color (2 particiones para 2 impresoras)
-    .\kafka-topics.bat --create --topic cola-impresion-color --bootstrap-server localhost:9092 --partitions 2
-    ```
+* **`grupo-archivador`**: Lee de `cola-recepcion`.
+* **`grupo-transformador`**: Lee de `cola-recepcion`. Al tener un ID distinto al archivador, Kafka entrega una copia del mensaje a ambos procesos a la vez.
+* **`grupo-impresoras-BN`**: Compartido por 3 hilos de impresión (balanceo de carga).
+* **`grupo-impresoras-Color`**: Compartido por 2 hilos de impresión.
 
-### 3. Ejecución del Software
+---
 
-El sistema consta de 3 módulos independientes que deben ejecutarse en paralelo (en terminales distintas o consolas de Eclipse).
+## 2. Guía para el Desarrollador
 
-**Orden recomendado de ejecución:**
+Información técnica sobre la construcción y estructura del proyecto.
 
-1.  **Sistema de Impresión (Hardware):**
-    Arranca los 5 hilos de impresión que quedarán a la espera de trabajo.
-    * Clase: `impresion.consumidor.Impresoras`
+### Requisitos Previos
 
-2.  **Procesador Central (Servidor):**
-    Arranca el Archivador y el Transformador/Router.
-    * Clase: `impresion.consumidor.Procesador`
+* **Java:** JDK 17 o superior.
+* **Maven:** 3.8 o superior.
+* **Apache Kafka:** 3.6+ corriendo en `localhost:9092`.
 
-3.  **Emisor (Empleado):**
-    Empieza a generar y enviar documentos aleatorios continuamente.
-    * Clase: `impresion.productor.Emisor`
+### Estructura del Código (Clean Code)
 
-##  Resultados
+El proyecto está modularizado para facilitar el mantenimiento:
 
-El sistema generará automáticamente en la raíz del proyecto:
-* Una carpeta `/archivos_originales` con los JSON recibidos organizados por nombre del remitente.
-* Logs en consola detallando el flujo de impresión y paginación.
+* `src/main/resources/app.properties`: **Configuración centralizada.** Define los nombres de los topics, rutas de salida y tiempos de simulación.
+* `com.empresa.config`: Clases de carga de configuración y constantes.
+* `com.empresa.productor`: Simulación de envío de mensajes.
+* `com.empresa.procesador`: Lógica de negocio (ETL) para archivar y transformar.
+* `com.empresa.impresora`: Consumidores finales que escriben en disco.
 
-## Autor
-Pablo Higuero- Desarrollo de Interfaces y Sistemas Distribuidos.
+### Compilación
+
+Para generar el artefacto ejecutable:
+
+```bash
+mvn clean package
+
+```
+
+---
+
+## 3. Guía para el Implantador (Puesta en Marcha)
+
+Pasos para desplegar el sistema en un entorno local de desarrollo.
+
+### Paso 1: Iniciar Kafka
+
+Asegúrese de que **Zookeeper** y **Kafka Broker** están iniciados y operativos en el puerto 9092.
+
+### Paso 2: Creación de Topics
+
+Ejecute los siguientes comandos para crear la infraestructura de colas necesaria:
+
+**En Linux / Mac:**
+
+```bash
+bin/kafka-topics.sh --create --topic cola-recepcion --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic cola-impresion-bn --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic cola-impresion-color --bootstrap-server localhost:9092
+
+```
+
+**En Windows:**
+
+```cmd
+bin\windows\kafka-topics.bat --create --topic cola-recepcion --bootstrap-server localhost:9092
+bin\windows\kafka-topics.bat --create --topic cola-impresion-bn --bootstrap-server localhost:9092
+bin\windows\kafka-topics.bat --create --topic cola-impresion-color --bootstrap-server localhost:9092
+
+```
+
+### Paso 3: Ejecución
+
+Se recomienda iniciar los módulos en el siguiente orden (en terminales separadas):
+
+1. **Impresoras (`ImpresorasApp`):** Para dejar los consumidores listos.
+2. **Procesador (`ProcesadorApp`):** Para iniciar el archivado y enrutamiento.
+3. **Productor (`EmisorApp`):** Para empezar a enviar carga de trabajo.
+
+---
+
+## 4. Guía para el Mantenedor
+
+Instrucciones para la operación diaria, limpieza y reinicio del sistema.
+
+### Ubicación de Archivos (Salida)
+
+El sistema genera automáticamente la carpeta `storage/` en la raíz del proyecto:
+
+* `storage/archivos_originales/`: Copia de seguridad legal (por Sender).
+* `storage/impresiones_bn/`: Salida de impresión B/N.
+* `storage/impresiones_color/`: Salida de impresión Color.
+
+### Procedimiento de Reinicio y Limpieza (Wipe)
+
+Si el sistema se bloquea o se requiere una ejecución limpia (sin mensajes antiguos):
+
+1. **Detener:** Cierre todas las aplicaciones Java.
+2. **Eliminar Topics:** Esto borrará todos los mensajes pendientes en Kafka.
+* *Comando:* `kafka-topics.sh --delete --topic cola-recepcion,cola-impresion-bn,cola-impresion-color --bootstrap-server localhost:9092`
+
+
+3. **Limpiar Disco:** Borre el contenido de la carpeta `storage/`.
+4. **Reiniciar:** Vuelva a crear los topics siguiendo el **Paso 2** de la guía de implantación.
+
+```
+
+```
