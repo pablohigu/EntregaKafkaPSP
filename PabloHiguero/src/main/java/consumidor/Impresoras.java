@@ -17,7 +17,6 @@ public class Impresoras {
     static class TareaImpresora implements Runnable {
         String tipo;
         int id;
-
         public TareaImpresora(String t, int i) { tipo = t; id = i; }
 
         public void run() {

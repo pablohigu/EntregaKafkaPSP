@@ -24,6 +24,7 @@ public class Procesador {
         new Thread(this::tareaArchivar).start();
         new Thread(this::tareaTransformar).start();
     }
+    
     private void tareaArchivar() {
         KafkaConsumer<String, String> consumer = crearConsumidor(Config.get("group.archivador"));
         consumer.subscribe(Collections.singletonList(Config.get("topic.recepcion")));
@@ -69,7 +70,7 @@ public class Procesador {
                     String texto = doc.documento;
                     int longitud = texto.length();
                     int maxChars = Config.getInt("app.pagina.tamano");
-                    
+                  
                     int totalPaginas = (int) Math.ceil((double) longitud / maxChars);
 
                     for (int i = 0; i < totalPaginas; i++) {

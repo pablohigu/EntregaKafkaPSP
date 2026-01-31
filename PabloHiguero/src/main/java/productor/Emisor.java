@@ -47,7 +47,6 @@ public class Emisor {
                 String textoBase = "Contenido de prueba para rellenar espacio. ";
                 String textoLargo = textoBase.repeat(Config.getInt("app.test.repeticiones")); 
 
-                // 3. Crear documento con el REMITENTE ALEATORIO
                 Documento doc = new Documento(titulo, textoLargo, tipo, remitenteActual);
                 
                 producer.send(new ProducerRecord<>(Config.get("topic.recepcion"), doc.sender, mapper.writeValueAsString(doc)));

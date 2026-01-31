@@ -1,0 +1,49 @@
+package productor;
+import org.apache.kafka.clients.producer.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import modelo.Config;
+import modelo.Documento;
+
+import java.util.Properties;
+import java.util.Random;
+
+public class Emisor {
+    
+    public void iniciar() {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", Config.get("kafka.server"));
+        props.put("key.serializer", Config.get("kafka.key.serializer"));
+        props.put("value.serializer", Config.get("kafka.value.serializer"));
+
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
+            ObjectMapper mapper = new ObjectMapper();
+            Random random = new Random();
+            int contador = 1;
+
+            System.out.println("--- Oficina abierta: Enviando trabajos continuamente ---");
+
+            while (true) {
+                boolean esColor = random.nextBoolean();
+                String tipo = esColor ? "Color" : "B/N";
+                String titulo = (esColor ? "Catalogo_" : "Informe_") + contador;
+                
+                String textoBase = "Contenido de prueba para rellenar espacio. ";
+                String textoLargo = textoBase.repeat(Config.getInt("app.test.repeticiones")); 
+
+                Documento doc = new Documento(titulo, textoLargo, tipo, "Pablo Higuero");
+                
+                producer.send(new ProducerRecord<>(Config.get("topic.recepcion"), doc.sender, mapper.writeValueAsString(doc)));
+                
+                System.out.println("[Enviado] " + doc.titulo + " - Tipo: " + tipo);
+                
+                contador++;
+                Thread.sleep(Config.getInt("app.tiempo.envio")); 
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public static void main(String[] args) {
+        new Emisor().iniciar();
+    }
+}
