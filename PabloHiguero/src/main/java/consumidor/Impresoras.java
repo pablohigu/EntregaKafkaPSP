@@ -1,46 +1,91 @@
 package consumidor;
-import org.apache.kafka.clients.consumer.*;
-
-import modelo.Config;
-
+import java.io.IOException;
+import java.nio.file.*;
 import java.time.Duration;
-import java.util.*;
+import java.util.Collections;
+import java.util.Properties;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+
+import modelo.AppConfig;
+import modelo.Constantes;
 
 public class Impresoras {
+
     public static void main(String[] args) {
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
-        
-        for (int i = 1; i <= 3; i++) new Thread(new TareaImpresora("BN", i)).start();
-        for (int i = 1; i <= 2; i++) new Thread(new TareaImpresora("Color", i)).start();
+
+        // 3 Impresoras B/N
+        for (int i = 1; i <= 3; i++) {
+            new Thread(new ImpresoraWorker(Constantes.TIPO_BN, i)).start();
+        }
+
+        // 2 Impresoras Color
+        for (int i = 1; i <= 2; i++) {
+            new Thread(new ImpresoraWorker(Constantes.TIPO_COLOR, i)).start();
+        }
     }
 
-    static class TareaImpresora implements Runnable {
-        String tipo;
-        int id;
-        public TareaImpresora(String t, int i) { tipo = t; id = i; }
+    static class ImpresoraWorker implements Runnable {
+        private final String tipo;
+        private final int id;
+        private final String carpetaSalida;
+        private final String topic;
+        private final String grupo;
 
+        public ImpresoraWorker(String tipo, int id) {
+            this.tipo = tipo;
+            this.id = id;
+            
+            if (tipo.equals(Constantes.TIPO_COLOR)) {
+                this.topic = AppConfig.get(Constantes.CFG_TOPIC_SALIDA_COLOR);
+                this.grupo = AppConfig.get(Constantes.CFG_GROUP_IMP_COLOR);
+                this.carpetaSalida = AppConfig.get(Constantes.CFG_DIR_SALIDA_COLOR);
+            } else {
+                this.topic = AppConfig.get(Constantes.CFG_TOPIC_SALIDA_BN);
+                this.grupo = AppConfig.get(Constantes.CFG_GROUP_IMP_BN);
+                this.carpetaSalida = AppConfig.get(Constantes.CFG_DIR_SALIDA_BN);
+            }
+        }
+
+        @Override
         public void run() {
             Properties props = new Properties();
-            props.put("bootstrap.servers", Config.get("kafka.server"));
-            
-            String grupo = tipo.equals("Color") ? Config.get("group.impresoras.color") : Config.get("group.impresoras.bn");
-            String topic = tipo.equals("Color") ? Config.get("topic.impresion.color") : Config.get("topic.impresion.bn");
-            
+            props.put("bootstrap.servers", AppConfig.get(Constantes.CFG_KAFKA_SERVER));
             props.put("group.id", grupo);
-            props.put("key.deserializer", Config.get("kafka.key.deserializer"));
-            props.put("value.deserializer", Config.get("kafka.value.deserializer"));
+            props.put("key.deserializer", AppConfig.get(Constantes.CFG_KEY_DESER));
+            props.put("value.deserializer", AppConfig.get(Constantes.CFG_VAL_DESER));
 
-            KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
-            consumer.subscribe(Collections.singletonList(topic));
-            System.out.println("[INFO] Impresora " + tipo + "-" + id + " online.");
+            try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
+                consumer.subscribe(Collections.singletonList(topic));
+                System.out.printf("[Impresora] %s-%d Online. Escuchando: %s%n", tipo, id, topic);
 
-            while (true) {
-                for (ConsumerRecord<String, String> r : consumer.poll(Duration.ofMillis(500))) {
-                    System.out.println("[Imprimiendo][" + tipo + "-" + id + "] " + r.value());
-                    try { 
-                        Thread.sleep(Config.getInt("app.tiempo.impresion")); 
-                    } catch (Exception e) {}
+                // Crear directorio si no existe
+                Files.createDirectories(Paths.get(carpetaSalida));
+
+                while (true) {
+                    for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(1000))) {
+                        imprimir(record.value());
+                    }
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void imprimir(String contenidoJson) {
+            try {
+                // Simulamos impresión guardando en fichero con timestamp para no sobreescribir
+                String filename = String.format("print_%d_%d.json", id, System.nanoTime());
+                Path path = Paths.get(carpetaSalida, filename);
+                
+                Files.write(path, contenidoJson.getBytes());
+                
+                System.out.printf("[Impreso] %s-%d -> %s%n", tipo, id, filename);
+                Thread.sleep(AppConfig.getInt(Constantes.CFG_SLEEP_IMP));
+            } catch (Exception e) {
+                System.err.println("Error imprimiendo: " + e.getMessage());
             }
         }
     }

@@ -1,0 +1,29 @@
+package util;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
+
+public class JsonUtil {
+    private static final ObjectMapper mapper = new ObjectMapper();
+
+    public static <T> T fromJson(String json, Class<T> clazz) {
+        try {
+            return mapper.readValue(json, clazz);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Error deserializando JSON", e);
+        }
+    }
+
+    public static String toJson(Object object) {
+        try {
+            return mapper.writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Error serializando objeto", e);
+        }
+    }
+
+    public static ObjectNode createNode() {
+        return mapper.createObjectNode();
+    }
+}

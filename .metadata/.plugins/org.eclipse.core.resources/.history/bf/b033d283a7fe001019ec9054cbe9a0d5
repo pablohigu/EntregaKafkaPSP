@@ -1,0 +1,41 @@
+package modelo;
+package com.empresa.config;
+
+public class Constantes {
+    // Claves de configuración (coinciden con app.properties)
+    public static final String CFG_KAFKA_SERVER = "kafka.bootstrap.servers";
+    public static final String CFG_KEY_SER = "kafka.key.serializer";
+    public static final String CFG_VAL_SER = "kafka.value.serializer";
+    public static final String CFG_KEY_DESER = "kafka.key.deserializer";
+    public static final String CFG_VAL_DESER = "kafka.value.deserializer";
+    
+    public static final String CFG_TOPIC_ENTRADA = "topic.entrada";
+    public static final String CFG_TOPIC_SALIDA_BN = "topic.salida.bn";
+    public static final String CFG_TOPIC_SALIDA_COLOR = "topic.salida.color";
+    
+    public static final String CFG_GROUP_ARCHIVADOR = "group.archivador";
+    public static final String CFG_GROUP_TRANSFORMADOR = "group.transformador";
+    public static final String CFG_GROUP_IMP_BN = "group.impresora.bn";
+    public static final String CFG_GROUP_IMP_COLOR = "group.impresora.color";
+    
+    public static final String CFG_PAGINA_CHARS = "app.pagina.max.chars";
+    public static final String CFG_DIR_ENTRADA = "app.dir.entrada";
+    public static final String CFG_DIR_SALIDA_BN = "app.dir.salida.bn";
+    public static final String CFG_DIR_SALIDA_COLOR = "app.dir.salida.color";
+    public static final String CFG_SLEEP_IMP = "app.sleep.impresion.ms";
+    public static final String CFG_SLEEP_PROD = "app.sleep.productor.ms";
+    public static final String CFG_TEST_REPETICIONES = "app.test.texto.repeticiones";
+
+    // Constantes de Negocio
+    public static final String TIPO_COLOR = "Color";
+    public static final String TIPO_BN = "B/N";
+    
+    // JSON Fields
+    public static final String JSON_TITULO = "titulo";
+    public static final String JSON_DOCUMENTO = "documento";
+    public static final String JSON_TIPO = "tipo";
+    public static final String JSON_SENDER = "sender";
+    public static final String JSON_PAGINA_ACTUAL = "pagina_actual";
+    public static final String JSON_TOTAL_PAGINAS = "total_paginas";
+    public static final String JSON_CONTENIDO = "contenido";
+}

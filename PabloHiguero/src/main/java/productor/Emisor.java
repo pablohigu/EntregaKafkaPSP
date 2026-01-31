@@ -1,64 +1,63 @@
-package productor; // O el paquete que estés usando (ej: impresion.productor)
+package productor;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
-import org.apache.kafka.clients.producer.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-// Asegúrate de que estos imports coinciden con donde tienes tus clases
-import modelo.Config;     
-import modelo.Documento;  
+import modelo.AppConfig;
+import modelo.Constantes;
+import modelo.Documento;
+import util.JsonUtil;
 
 import java.util.Properties;
 import java.util.Random;
 
 public class Emisor {
-    
-    public void iniciar() {
-        Properties props = new Properties();
-        props.put("bootstrap.servers", Config.get("kafka.server"));
-        props.put("key.serializer", Config.get("kafka.key.serializer"));
-        props.put("value.serializer", Config.get("kafka.value.serializer"));
-
-        try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
-            ObjectMapper mapper = new ObjectMapper();
-            Random random = new Random();
-            int contador = 1;
-
-            //LISTA DE EMPLEADOS
-            String[] empleados = { 
-                "Pablo Higuero", 
-                "Ana Martinez", 
-                "David Garcia", 
-                "Laura Ruiz", 
-                "Javier Lopez" 
-            };
-
-            System.out.println("--- Oficina abierta: Varios empleados enviando trabajos ---");
-
-            while (true) {
-                // Elegir empleado al azar
-                String remitenteActual = empleados[random.nextInt(empleados.length)];
-
-                // Elegir tipo al azar
-                boolean esColor = random.nextBoolean();
-                String tipo = esColor ? "Color" : "B/N";
-                String titulo = (esColor ? "Catalogo_" : "Informe_") + contador;
-                
-                String textoBase = "Contenido de prueba para rellenar espacio. ";
-                String textoLargo = textoBase.repeat(Config.getInt("app.test.repeticiones")); 
-
-                Documento doc = new Documento(titulo, textoLargo, tipo, remitenteActual);
-                
-                producer.send(new ProducerRecord<>(Config.get("topic.recepcion"), doc.sender, mapper.writeValueAsString(doc)));
-                
-                System.out.println("[Enviado] " + doc.titulo + " (" + tipo + ") por: " + remitenteActual);
-                
-                contador++;
-                Thread.sleep(Config.getInt("app.tiempo.envio")); 
-            }
-        } catch (Exception e) { e.printStackTrace(); }
-    }
+    private final Random random = new Random();
+    private final String[] empleados = {"Miguel Goyena", "Ana Ruiz", "Carlos Diaz", "Lucia Fern"};
 
     public static void main(String[] args) {
-        new Emisor().iniciar();
+        new Emisor().ejecutar();
+    }
+
+    public void ejecutar() {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", AppConfig.get(Constantes.CFG_KAFKA_SERVER));
+        props.put("key.serializer", AppConfig.get(Constantes.CFG_KEY_SER));
+        props.put("value.serializer", AppConfig.get(Constantes.CFG_VAL_SER));
+
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
+            System.out.println("--- Emisor Iniciado ---");
+            int contador = 1;
+
+            while (true) {
+                Documento doc = generarDocumentoAleatorio(contador++);
+                String json = JsonUtil.toJson(doc);
+
+                // sender como KEY para mantener orden por empleado si fuera necesario
+                ProducerRecord<String, String> record = new ProducerRecord<>(
+                        AppConfig.get(Constantes.CFG_TOPIC_ENTRADA),
+                        doc.getSender(),
+                        json
+                );
+
+                producer.send(record);
+                System.out.printf("[Enviado] %s (%s) de %s%n", doc.getTitulo(), doc.getTipo(), doc.getSender());
+
+                Thread.sleep(AppConfig.getInt(Constantes.CFG_SLEEP_PROD));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Documento generarDocumentoAleatorio(int id) {
+        String sender = empleados[random.nextInt(empleados.length)];
+        boolean esColor = random.nextBoolean();
+        String tipo = esColor ? Constantes.TIPO_COLOR : Constantes.TIPO_BN;
+        String titulo = "Doc_" + id + "_" + (esColor ? "Color" : "BN");
+        
+        String textoBase = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ";
+        String texto = textoBase.repeat(AppConfig.getInt(Constantes.CFG_TEST_REPETICIONES));
+
+        return new Documento(titulo, texto, tipo, sender);
     }
 }

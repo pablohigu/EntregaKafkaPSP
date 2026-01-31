@@ -1,103 +1,126 @@
 package consumidor;
-import org.apache.kafka.clients.consumer.*;
-import org.apache.kafka.clients.producer.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import modelo.Config;
+import modelo.AppConfig;
+import modelo.Constantes;
 import modelo.Documento;
+import util.JsonUtil;
 
-import java.io.File;
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+
+import java.io.IOException;
 import java.nio.file.*;
 import java.time.Duration;
-import java.util.*;
+import java.util.Collections;
+import java.util.Properties;
 
 public class Procesador {
 
     public static void main(String[] args) {
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
-        Procesador app = new Procesador();
-        app.iniciarSistema();
+        
+        // Hilo 1: Archivador (Guarda original)
+        new Thread(new ArchivadorTask()).start();
+        
+        // Hilo 2: Transformador (Divide y reenvía)
+        new Thread(new TransformadorTask()).start();
     }
 
-    public void iniciarSistema() {
-        new Thread(this::tareaArchivar).start();
-        new Thread(this::tareaTransformar).start();
-    }
-    
-    private void tareaArchivar() {
-        KafkaConsumer<String, String> consumer = crearConsumidor(Config.get("group.archivador"));
-        consumer.subscribe(Collections.singletonList(Config.get("topic.recepcion")));
-        ObjectMapper mapper = new ObjectMapper();
-        System.out.println("[INFO] Modulo Archivador iniciado.");
-        while (true) {
-            for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
-                try {
-                    Documento doc = mapper.readValue(record.value(), Documento.class);
-                    
-                    String rutaBase = Config.get("app.ruta.archivos");
-                    String nombreCarpeta = rutaBase + doc.sender.replace(" ", "_");
-                    new File(nombreCarpeta).mkdirs();
-                    
-                    String nombreFichero = nombreCarpeta + "/" + doc.titulo + ".json";
-                    Files.write(Paths.get(nombreFichero), record.value().getBytes());
-                    
-                    System.out.println("[Archivado] Documento guardado en disco: " + nombreFichero);
-                } catch (Exception e) { e.printStackTrace(); }
+    // --- TAREA ARCHIVADOR ---
+    static class ArchivadorTask implements Runnable {
+        @Override
+        public void run() {
+            KafkaConsumer<String, String> consumer = crearConsumidor(AppConfig.get(Constantes.CFG_GROUP_ARCHIVADOR));
+            consumer.subscribe(Collections.singletonList(AppConfig.get(Constantes.CFG_TOPIC_ENTRADA)));
+            System.out.println("[Archivador] Iniciado y escuchando...");
+
+            while (true) {
+                for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(1000))) {
+                    guardarEnDisco(record.value());
+                }
+            }
+        }
+
+        private void guardarEnDisco(String json) {
+            try {
+                Documento doc = JsonUtil.fromJson(json, Documento.class);
+                String senderSanitized = doc.getSender().replaceAll("\\s+", "_");
+                
+                Path directorio = Paths.get(AppConfig.get(Constantes.CFG_DIR_ENTRADA), senderSanitized);
+                Files.createDirectories(directorio);
+                
+                Path archivo = directorio.resolve(doc.getTitulo() + ".json");
+                Files.write(archivo, json.getBytes());
+                
+                System.out.println("[Archivador] Guardado: " + archivo);
+            } catch (IOException e) {
+                System.err.println("[Archivador] Error I/O: " + e.getMessage());
             }
         }
     }
 
-    private void tareaTransformar() {
-        KafkaConsumer<String, String> consumer = crearConsumidor(Config.get("group.transformador"));
-        consumer.subscribe(Collections.singletonList(Config.get("topic.recepcion")));
-        
-        Properties props = new Properties();
-        props.put("bootstrap.servers", Config.get("kafka.server"));
-        props.put("key.serializer", Config.get("kafka.key.serializer"));
-        props.put("value.serializer", Config.get("kafka.value.serializer"));
-        KafkaProducer<String, String> producer = new KafkaProducer<>(props);
-        ObjectMapper mapper = new ObjectMapper();
-        
-        System.out.println("[INFO] Modulo Transformador iniciado.");
+    // --- TAREA TRANSFORMADOR ---
+    static class TransformadorTask implements Runnable {
+        private final int maxChars = AppConfig.getInt(Constantes.CFG_PAGINA_CHARS);
 
-        while (true) {
-            for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
-                try {
-                    Documento doc = mapper.readValue(record.value(), Documento.class);
-                    String destino = doc.tipo.equals("Color") ? Config.get("topic.impresion.color") : Config.get("topic.impresion.bn");
+        @Override
+        public void run() {
+            KafkaConsumer<String, String> consumer = crearConsumidor(AppConfig.get(Constantes.CFG_GROUP_TRANSFORMADOR));
+            consumer.subscribe(Collections.singletonList(AppConfig.get(Constantes.CFG_TOPIC_ENTRADA)));
+            
+            KafkaProducer<String, String> producer = crearProductor();
+            System.out.println("[Transformador] Iniciado y procesando...");
 
-                    String texto = doc.documento;
-                    int longitud = texto.length();
-                    int maxChars = Config.getInt("app.pagina.tamano");
-                  
-                    int totalPaginas = (int) Math.ceil((double) longitud / maxChars);
-
-                    for (int i = 0; i < totalPaginas; i++) {
-                        int inicio = i * maxChars;
-                        int fin = Math.min(inicio + maxChars, longitud);
-                        
-                        ObjectNode jsonPagina = mapper.createObjectNode();
-                        jsonPagina.put("titulo", doc.titulo);
-                        jsonPagina.put("pagina_actual", i + 1);
-                        jsonPagina.put("total_paginas", totalPaginas);
-                        jsonPagina.put("contenido", texto.substring(inicio, fin));
-                        
-                        producer.send(new ProducerRecord<>(destino, jsonPagina.toString()));
-                    }
-                    System.out.println("[Router] " + doc.titulo + " dividido en " + totalPaginas + " paginas. Destino: " + destino);
-
-                } catch (Exception e) { e.printStackTrace(); }
+            while (true) {
+                for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(1000))) {
+                    procesarMensaje(record.value(), producer);
+                }
             }
+        }
+
+        private void procesarMensaje(String json, KafkaProducer<String, String> producer) {
+            Documento doc = JsonUtil.fromJson(json, Documento.class);
+            String texto = doc.getDocumento();
+            int longitud = texto.length();
+            int totalPaginas = (int) Math.ceil((double) longitud / maxChars);
+
+            String topicDestino = doc.getTipo().equalsIgnoreCase(Constantes.TIPO_COLOR) 
+                    ? AppConfig.get(Constantes.CFG_TOPIC_SALIDA_COLOR) 
+                    : AppConfig.get(Constantes.CFG_TOPIC_SALIDA_BN);
+
+            for (int i = 0; i < totalPaginas; i++) {
+                int start = i * maxChars;
+                int end = Math.min(start + maxChars, longitud);
+                String contenidoPagina = texto.substring(start, end);
+
+                ObjectNode paginaJson = JsonUtil.createNode();
+                paginaJson.put(Constantes.JSON_TITULO, doc.getTitulo());
+                paginaJson.put(Constantes.JSON_PAGINA_ACTUAL, i + 1);
+                paginaJson.put(Constantes.JSON_TOTAL_PAGINAS, totalPaginas);
+                paginaJson.put(Constantes.JSON_CONTENIDO, contenidoPagina);
+
+                producer.send(new ProducerRecord<>(topicDestino, paginaJson.toString()));
+            }
+            System.out.printf("[Transformador] %s dividido en %d paginas -> %s%n", doc.getTitulo(), totalPaginas, topicDestino);
+        }
+
+        private KafkaProducer<String, String> crearProductor() {
+            Properties props = new Properties();
+            props.put("bootstrap.servers", AppConfig.get(Constantes.CFG_KAFKA_SERVER));
+            props.put("key.serializer", AppConfig.get(Constantes.CFG_KEY_SER));
+            props.put("value.serializer", AppConfig.get(Constantes.CFG_VAL_SER));
+            return new KafkaProducer<>(props);
         }
     }
 
-    private KafkaConsumer<String, String> crearConsumidor(String grupo) {
+    private static KafkaConsumer<String, String> crearConsumidor(String group) {
         Properties props = new Properties();
-        props.put("bootstrap.servers", Config.get("kafka.server"));
-        props.put("group.id", grupo);
-        props.put("key.deserializer", Config.get("kafka.key.deserializer"));
-        props.put("value.deserializer", Config.get("kafka.value.deserializer"));
+        props.put("bootstrap.servers", AppConfig.get(Constantes.CFG_KAFKA_SERVER));
+        props.put("group.id", group);
+        props.put("key.deserializer", AppConfig.get(Constantes.CFG_KEY_DESER));
+        props.put("value.deserializer", AppConfig.get(Constantes.CFG_VAL_DESER));
         return new KafkaConsumer<>(props);
     }
 }

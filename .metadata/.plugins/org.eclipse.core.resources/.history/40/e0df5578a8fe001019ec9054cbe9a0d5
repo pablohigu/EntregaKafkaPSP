@@ -1,0 +1,103 @@
+package consumidor;
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.producer.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import modelo.Config;
+import modelo.Documento;
+
+import java.io.File;
+import java.nio.file.*;
+import java.time.Duration;
+import java.util.*;
+
+public class Procesador {
+
+    public static void main(String[] args) {
+        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn");
+        Procesador app = new Procesador();
+        app.iniciarSistema();
+    }
+
+    public void iniciarSistema() {
+        new Thread(this::tareaArchivar).start();
+        new Thread(this::tareaTransformar).start();
+    }
+    
+    private void tareaArchivar() {
+        KafkaConsumer<String, String> consumer = crearConsumidor(Config.get("group.archivador"));
+        consumer.subscribe(Collections.singletonList(Config.get("topic.recepcion")));
+        ObjectMapper mapper = new ObjectMapper();
+        System.out.println("[INFO] Modulo Archivador iniciado.");
+        while (true) {
+            for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
+                try {
+                    Documento doc = mapper.readValue(record.value(), Documento.class);
+                    
+                    String rutaBase = Config.get("app.ruta.archivos");
+                    String nombreCarpeta = rutaBase + doc.sender.replace(" ", "_");
+                    new File(nombreCarpeta).mkdirs();
+                    
+                    String nombreFichero = nombreCarpeta + "/" + doc.titulo + ".json";
+                    Files.write(Paths.get(nombreFichero), record.value().getBytes());
+                    
+                    System.out.println("[Archivado] Documento guardado en disco: " + nombreFichero);
+                } catch (Exception e) { e.printStackTrace(); }
+            }
+        }
+    }
+
+    private void tareaTransformar() {
+        KafkaConsumer<String, String> consumer = crearConsumidor(Config.get("group.transformador"));
+        consumer.subscribe(Collections.singletonList(Config.get("topic.recepcion")));
+        
+        Properties props = new Properties();
+        props.put("bootstrap.servers", Config.get("kafka.server"));
+        props.put("key.serializer", Config.get("kafka.key.serializer"));
+        props.put("value.serializer", Config.get("kafka.value.serializer"));
+        KafkaProducer<String, String> producer = new KafkaProducer<>(props);
+        ObjectMapper mapper = new ObjectMapper();
+        
+        System.out.println("[INFO] Modulo Transformador iniciado.");
+
+        while (true) {
+            for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofMillis(500))) {
+                try {
+                    Documento doc = mapper.readValue(record.value(), Documento.class);
+                    String destino = doc.tipo.equals("Color") ? Config.get("topic.impresion.color") : Config.get("topic.impresion.bn");
+
+                    String texto = doc.documento;
+                    int longitud = texto.length();
+                    int maxChars = Config.getInt("app.pagina.tamano");
+                  
+                    int totalPaginas = (int) Math.ceil((double) longitud / maxChars);
+
+                    for (int i = 0; i < totalPaginas; i++) {
+                        int inicio = i * maxChars;
+                        int fin = Math.min(inicio + maxChars, longitud);
+                        
+                        ObjectNode jsonPagina = mapper.createObjectNode();
+                        jsonPagina.put("titulo", doc.titulo);
+                        jsonPagina.put("pagina_actual", i + 1);
+                        jsonPagina.put("total_paginas", totalPaginas);
+                        jsonPagina.put("contenido", texto.substring(inicio, fin));
+                        
+                        producer.send(new ProducerRecord<>(destino, jsonPagina.toString()));
+                    }
+                    System.out.println("[Router] " + doc.titulo + " dividido en " + totalPaginas + " paginas. Destino: " + destino);
+
+                } catch (Exception e) { e.printStackTrace(); }
+            }
+        }
+    }
+
+    private KafkaConsumer<String, String> crearConsumidor(String grupo) {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", Config.get("kafka.server"));
+        props.put("group.id", grupo);
+        props.put("key.deserializer", Config.get("kafka.key.deserializer"));
+        props.put("value.deserializer", Config.get("kafka.value.deserializer"));
+        return new KafkaConsumer<>(props);
+    }
+}
