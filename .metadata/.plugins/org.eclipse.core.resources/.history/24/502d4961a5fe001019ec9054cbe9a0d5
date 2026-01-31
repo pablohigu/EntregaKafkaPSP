@@ -23,7 +23,8 @@ public class Emisor {
             Random random = new Random();
             int contador = 1;
 
-            //LISTA DE EMPLEADOS
+            // --- LISTA DE EMPLEADOS ---
+            // Añadimos varios nombres para probar la creación de distintas carpetas
             String[] empleados = { 
                 "Pablo Higuero", 
                 "Ana Martinez", 
@@ -35,10 +36,10 @@ public class Emisor {
             System.out.println("--- Oficina abierta: Varios empleados enviando trabajos ---");
 
             while (true) {
-                // Elegir empleado al azar
+                // 1. Elegir empleado al azar
                 String remitenteActual = empleados[random.nextInt(empleados.length)];
 
-                // Elegir tipo al azar
+                // 2. Elegir tipo al azar
                 boolean esColor = random.nextBoolean();
                 String tipo = esColor ? "Color" : "B/N";
                 String titulo = (esColor ? "Catalogo_" : "Informe_") + contador;
