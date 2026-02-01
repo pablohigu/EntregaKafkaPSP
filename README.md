@@ -152,6 +152,4 @@ Si el sistema se bloquea o se requiere una ejecución limpia (sin mensajes antig
 3. **Limpiar Disco:** Borre el contenido de la carpeta `storage/`.
 4. **Reiniciar:** Vuelva a crear los topics siguiendo el **Paso 2** de la guía de implantación.
 
-```
 
-```
