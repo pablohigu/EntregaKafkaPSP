@@ -1,12 +1,13 @@
 
 
+
 # Sistema de Gestión de Colas de Impresión (Kafka + Java)
 
 Este proyecto implementa un sistema de mensajería asíncrono para gestionar una cola de impresión compleja utilizando **Apache Kafka** y **Java**.
 
 El sistema cumple con los requerimientos de la empresa:
 * **Recepción** de documentos JSON.
-* **Procesamiento paralelo:** Archivado (guardar original) y Transformación (paginación).
+* **Procesamiento paralelo:** Archivado (guardar original) y Transformación (paginación) simultáneos.
 * **Enrutamiento inteligente** a impresoras de B/N y Color.
 
 ---
@@ -47,12 +48,12 @@ El sistema utiliza el patrón de mensajería **Fan-Out** (Difusión) para garant
 
 ### Consumer Groups (Paralelismo)
 
-Para cumplir el requisito de eficiencia máxima, se configuran grupos de consumo específicos en `app.properties`:
+Para cumplir el requisito de eficiencia máxima, se configuran grupos de consumo específicos en `app.properties`. Al usar grupos diferentes, Kafka entrega copias del mensaje a ambos procesos:
 
-* **`grupo-archivador`**: Lee de `cola-recepcion`.
-* **`grupo-transformador`**: Lee de `cola-recepcion`. Al tener un ID distinto al archivador, Kafka entrega una copia del mensaje a ambos procesos a la vez.
-* **`grupo-impresoras-BN`**: Compartido por 3 hilos de impresión (balanceo de carga).
-* **`grupo-impresoras-Color`**: Compartido por 2 hilos de impresión.
+* **`cg-archivador`**: Lee de `cola-recepcion`.
+* **`cg-transformador`**: Lee de `cola-recepcion` (independiente del archivador).
+* **`cg-printer-bw`**: Compartido por 3 hilos de impresión (balanceo de carga).
+* **`cg-printer-color`**: Compartido por 2 hilos de impresión.
 
 ---
 
@@ -66,15 +67,15 @@ Información técnica sobre la construcción y estructura del proyecto.
 * **Maven:** 3.8 o superior.
 * **Apache Kafka:** 3.6+ corriendo en `localhost:9092`.
 
-### Estructura del Código (Clean Code)
+### Estructura del Código
 
-El proyecto está modularizado para facilitar el mantenimiento:
+El proyecto está modularizado en paquetes:
 
 * `src/main/resources/app.properties`: **Configuración centralizada.** Define los nombres de los topics, rutas de salida y tiempos de simulación.
-* `com.empresa.config`: Clases de carga de configuración y constantes.
-* `com.empresa.productor`: Simulación de envío de mensajes.
-* `com.empresa.procesador`: Lógica de negocio (ETL) para archivar y transformar.
-* `com.empresa.impresora`: Consumidores finales que escriben en disco.
+* `modelo`: Clases de configuración (`AppConfig`, `Constantes`) y DTO (`Documento`).
+* `productor`: Contiene la clase `Emisor` para simular envíos.
+* `consumidor`: Contiene `Procesador` (Lógica ETL) e `Impresoras` (Salida a disco).
+* `util`: Utilidades para manejo de JSON (`JsonUtil`).
 
 ### Compilación
 
@@ -121,9 +122,9 @@ bin\windows\kafka-topics.bat --create --topic cola-impresion-color --bootstrap-s
 
 Se recomienda iniciar los módulos en el siguiente orden (en terminales separadas):
 
-1. **Impresoras (`ImpresorasApp`):** Para dejar los consumidores listos.
-2. **Procesador (`ProcesadorApp`):** Para iniciar el archivado y enrutamiento.
-3. **Productor (`EmisorApp`):** Para empezar a enviar carga de trabajo.
+1. **Impresoras (`consumidor.Impresoras`):** Para dejar los consumidores listos.
+2. **Procesador (`consumidor.Procesador`):** Para iniciar el archivado y enrutamiento.
+3. **Productor (`productor.Emisor`):** Para empezar a enviar carga de trabajo.
 
 ---
 
@@ -133,11 +134,11 @@ Instrucciones para la operación diaria, limpieza y reinicio del sistema.
 
 ### Ubicación de Archivos (Salida)
 
-El sistema genera automáticamente la carpeta `storage/` en la raíz del proyecto:
+El sistema genera automáticamente la carpeta `storage/` en la raíz del proyecto para simular la impresión física:
 
-* `storage/archivos_originales/`: Copia de seguridad legal (por Sender).
-* `storage/impresiones_bn/`: Salida de impresión B/N.
-* `storage/impresiones_color/`: Salida de impresión Color.
+* `storage/entrada/`: Copia de seguridad legal (por Sender).
+* `storage/salida/bn/`: Salida de impresión B/N.
+* `storage/salida/color/`: Salida de impresión Color.
 
 ### Procedimiento de Reinicio y Limpieza (Wipe)
 
