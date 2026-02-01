@@ -5820,3 +5820,57 @@ java.lang.IllegalStateException: Call stack for thread main
 
 !ENTRY org.eclipse.m2e.logback.appender 2 0 2026-01-31 14:40:16.220
 !MESSAGE Direct modification of testCompileSourceRoots through add() is deprecated and will not work in Maven 4.0.0. Please use the add/remove methods instead. If you're using a plugin that causes this warning, please upgrade to the latest version and report an issue if the warning persists. To disable these warnings, set -Dmaven.project.sourceRoots.warningsDisabled=true on the command line, in the .mvn/maven.config file, or in project POM properties.
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.054
+!MESSAGE [Info] Document is null for editor: Documento.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.059
+!MESSAGE [Info] Completion handler is refreshed for the document: file:///C:/Users/pablo/Desktop/25-26/PSP/EntregaKafka/PabloHiguero/src/main/java/modelo/Documento.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.100
+!MESSAGE [Info] Document is null for editor: Emisor.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.102
+!MESSAGE [Info] Completion handler is refreshed for the document: file:///C:/Users/pablo/Desktop/25-26/PSP/EntregaKafka/PabloHiguero/src/main/java/productor/Emisor.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.161
+!MESSAGE [Info] Document is null for editor: Procesador.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.163
+!MESSAGE [Info] Completion handler is refreshed for the document: file:///C:/Users/pablo/Desktop/25-26/PSP/EntregaKafka/PabloHiguero/src/main/java/consumidor/Procesador.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.189
+!MESSAGE [Info] Document is null for editor: app.conf
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.191
+!MESSAGE [Info] Completion handler is refreshed for the document: file:///C:/Users/pablo/Desktop/25-26/PSP/EntregaKafka/PabloHiguero/resources/app.properties
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.208
+!MESSAGE [Info] Document is null for editor: Config.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.211
+!MESSAGE [Info] Completion handler is refreshed for the document: file:///C:/Users/pablo/Desktop/25-26/PSP/EntregaKafka/PabloHiguero/src/main/java/modelo/AppConfig.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.233
+!MESSAGE [Info] Document is null for editor: app.conf
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.235
+!MESSAGE [Info] Completion handler is refreshed for the document: file:///C:/Users/pablo/Desktop/25-26/PSP/EntregaKafka/PabloHiguero/resources/app.properties
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.266
+!MESSAGE [Info] Document is null for editor: Constantes.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.269
+!MESSAGE [Info] Completion handler is refreshed for the document: file:///C:/Users/pablo/Desktop/25-26/PSP/EntregaKafka/PabloHiguero/src/main/java/modelo/Constantes.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.341
+!MESSAGE [Info] Document is null for editor: JsonUtil.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.348
+!MESSAGE [Info] Completion handler is refreshed for the document: file:///C:/Users/pablo/Desktop/25-26/PSP/EntregaKafka/PabloHiguero/src/main/java/util/JsonUtil.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.406
+!MESSAGE [Info] Document is null for editor: Impresoras.java
+
+!ENTRY com.microsoft.copilot.eclipse 1 0 2026-02-01 09:50:19.411
+!MESSAGE [Info] Completion handler is refreshed for the document: file:///C:/Users/pablo/Desktop/25-26/PSP/EntregaKafka/PabloHiguero/src/main/java/consumidor/Impresoras.java
